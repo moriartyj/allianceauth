@@ -161,7 +161,8 @@ class EveManager:
     def check_if_api_key_pair_is_new(api_id):
         if EveApiKeyPair.objects.count() == 0:
             return True
-        latest_api_id = int(EveApiKeyPair.objects.order_by('-api_id')[0].api_id)
+        fudge_factor  = 50; # Fudge factor of API IDs for two people creating APIs simultaneously
+        latest_api_id = int(EveApiKeyPair.objects.order_by('-api_id')[0].api_id) - fudge_factor
         if latest_api_id >= api_id:
             logger.debug("api key (%d) is older than latest API key (%d). Rejecting" % (api_id, latest_api_id) )
             return False
