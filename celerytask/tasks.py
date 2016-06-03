@@ -77,7 +77,7 @@ def update_jabber_groups(pk):
 def update_all_jabber_groups():
     logger.debug("Updating ALL jabber groups")
     for user in AuthServicesInfo.objects.exclude(jabber_username__exact=''):
-        update_jabber_groups(user.user_id)
+        update_jabber_groups.delay(user.user_id)
 
 @task
 def update_mumble_groups(pk):
@@ -101,7 +101,7 @@ def update_mumble_groups(pk):
 def update_all_mumble_groups():
     logger.debug("Updating ALL mumble groups")
     for user in AuthServicesInfo.objects.exclude(mumble_username__exact=''):
-        update_mumble_groups(user.user_id)
+        update_mumble_groups.delay(user.user_id)
 
 @task
 def update_forum_groups(pk):
@@ -125,7 +125,7 @@ def update_forum_groups(pk):
 def update_all_forum_groups():
     logger.debug("Updating ALL forum groups")
     for user in AuthServicesInfo.objects.exclude(forum_username__exact=''):
-        update_forum_groups(user.user_id)
+        update_forum_groups.delay(user.user_id)
 
 @task
 def update_smf_groups(pk):
@@ -149,7 +149,7 @@ def update_smf_groups(pk):
 def update_all_smf_groups():
     logger.debug("Updating ALL smf groups")
     for user in AuthServicesInfo.objects.exclude(smf_username__exact=''):
-        update_smf_groups(user.user_id)
+        update_smf_groups.delay(user.user_id)
 
 @task
 def update_ipboard_groups(pk):
@@ -173,7 +173,7 @@ def update_ipboard_groups(pk):
 def update_all_ipboard_groups():
     logger.debug("Updating ALL ipboard groups")
     for user in AuthServicesInfo.objects.exclude(ipboard_username__exact=''):
-        update_ipboard_groups(user.user_id)
+        update_ipboard_groups.delay(user.user_id)
 
 @task
 def update_teamspeak3_groups(pk):
@@ -196,7 +196,7 @@ def update_teamspeak3_groups(pk):
 def update_all_teamspeak3_groups():
     logger.debug("Updating ALL teamspeak3 groups")
     for user in AuthServicesInfo.objects.exclude(teamspeak3_uid__exact=''):
-        update_teamspeak3_groups(user.user_id)
+        update_teamspeak3_groups.delay(user.user_id)
 
 @task
 def update_discord_groups(pk):
@@ -221,7 +221,7 @@ def update_discord_groups(pk):
 def update_all_discord_groups():
     logger.debug("Updating ALL discord groups")
     for user in AuthServicesInfo.objects.exclude(discord_uid__exact=''):
-        update_discord_groups(user.user_id)
+        update_discord_groups.delay(user.user_id)
 
 @task
 def update_discourse_groups(pk):
@@ -246,7 +246,7 @@ def update_discourse_groups(pk):
 def update_all_discourse_groups():
     logger.debug("Updating ALL discourse groups")
     for user in AuthServicesInfo.objects.exclude(discourse_username__exact=''):
-        update_discourse_groups(user.user_id)
+        update_discourse_groups.delay(user.user_id)
 
 
 def assign_corp_group(auth):
