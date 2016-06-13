@@ -12,8 +12,9 @@ from managers.openfire_manager import OpenfireManager
 from managers.phpbb3_manager import Phpbb3Manager
 from managers.mumble_manager import MumbleManager
 from managers.ipboard_manager import IPBoardManager
+from managers.xenforo_manager import XenForoManager
 from managers.teamspeak3_manager import Teamspeak3Manager
-from managers.discord_manager import DiscordManager
+from managers.discord_manager import DiscordOAuthManager
 from managers.discourse_manager import DiscourseManager
 from managers.ips4_manager import Ips4Manager
 from managers.smf_manager import smfManager
@@ -128,6 +129,8 @@ def services_view(request):
 def service_blue_alliance_test(user):
     return check_if_user_has_permission(user, 'member') or check_if_user_has_permission(user, 'blue_member')
 
+def superuser_test(user):
+    return user.is_superuser
 
 @login_required
 @user_passes_test(service_blue_alliance_test)
@@ -178,6 +181,79 @@ def reset_forum_password(request):
     logger.error("Unsuccessful attempt to reset forum password for user %s" % request.user)
     return HttpResponseRedirect("/dashboard")
 
+@login_required
+@user_passes_test(service_blue_alliance_test)
+def activate_xenforo_forum(request):
+    logger.debug("activate_xenforo_forum called by user %s" % request.user)
+    authinfo = AuthServicesInfoManager.get_auth_service_info(request.user)
+    character = EveManager.get_character_by_id(authinfo.main_char_id)
+    logger.debug("Adding XenForo user for user %s with main character %s" % (request.user, character))
+    result = XenForoManager.add_user(character.character_name, request.user.email)
+    # Based on XenAPI's response codes
+    if result['response']['status_code'] == 200:
+        logger.info("Updated authserviceinfo for user %s with XenForo credentials. Updating groups." % request.user)
+        AuthServicesInfoManager.update_user_xenforo_info(result['username'], result['password'], request.user)
+        return HttpResponseRedirect("/services/")
+    logger.error("Unsuccesful attempt to activate xenforo for user %s" % request.user)
+    return HttpResponseRedirect("/dashboard")
+
+@login_required
+@user_passes_test(service_blue_alliance_test)
+def deactivate_xenforo_forum(request):
+    logger.debug("deactivate_xenforo_forum called by user %s" % request.user)
+    authinfo = AuthServicesInfoManager.get_auth_service_info(request.user)
+    result = XenForoManager.disable_user(authinfo.xenforo_username)
+    if result.status_code == 200:
+        AuthServicesInfoManager.update_user_xenforo_info("", "", request.user)
+        logger.info("Succesfully deactivated XenForo for user %s" % request.user)
+        return HttpResponseRedirect("/services/")
+    return HttpResponseRedirect("/dashboard")
+
+@login_required
+@user_passes_test(service_blue_alliance_test)
+def reset_xenforo_password(request):
+    logger.debug("reset_xenforo_password called by user %s" % request.user)
+    authinfo = AuthServicesInfoManager.get_auth_service_info(request.user)
+    character = EveManager.get_character_by_id(authinfo.main_char_id)
+    result = XenForoManager.reset_password(authinfo.xenforo_username)
+    # Based on XenAPI's response codes
+    if result['response']['status_code'] == 200:
+        AuthServicesInfoManager.update_user_xenforo_info(authinfo.xenforo_username, result['password'], request.user)
+        logger.info("Succesfully reset XenForo password for user %s" % request.user)
+        return HttpResponseRedirect("/services/")
+    logger.error("Unsuccessful attempt to reset XenForo password for user %s" % request.user)
+    return HttpResponseRedirect("/dashboard")
+
+@login_required
+@user_passes_test(service_blue_alliance_test)
+def set_xenforo_password(request):
+    logger.debug("set_xenforo_password called by user %s" % request.user)
+    error = None
+    if request.method == 'POST':
+        logger.debug("Received POST request with form.")
+        form = ServicePasswordForm(request.POST)
+        logger.debug("Form is valid: %s" % form.is_valid())
+        if form.is_valid():
+            password = form.cleaned_data['password']
+            logger.debug("Form contains password of length %s" % len(password))
+            authinfo = AuthServicesInfoManager.get_auth_service_info(request.user)
+            result = XenForoManager.update_user_password(authinfo.xenforo_username, password)
+            if result['response']['status_code'] == 200:
+                AuthServicesInfoManager.update_user_xenforo_info(authinfo.xenforo_username, result['password'], request.user)
+                logger.info("Succesfully reset XenForo password for user %s" % request.user)
+                return HttpResponseRedirect("/services/")
+            else:
+                logger.error("Failed to install custom XenForo password for user %s" % request.user)
+                error = "Failed to install custom password."
+        else:
+            error = "Invalid password provided"
+    else:
+        logger.debug("Request is not type POST - providing empty form.")
+        form = ServicePasswordForm()
+
+    logger.debug("Rendering form for user %s" % request.user)
+    context = {'form': form, 'service': 'Forum'}
+    return render_to_response('registered/service_password.html', context, context_instance=RequestContext(request))
 
 @login_required
 @user_passes_test(service_blue_alliance_test)
@@ -430,7 +506,7 @@ context_instance=RequestContext(request))
 def deactivate_discord(request):
     logger.debug("deactivate_discord called by user %s" % request.user)
     authinfo = AuthServicesInfoManager.get_auth_service_info(request.user)
-    result = DiscordManager.delete_user(authinfo.discord_uid)
+    result = DiscordOAuthManager.delete_user(authinfo.discord_uid)
     if result:
         AuthServicesInfoManager.update_user_discord_info("", request.user)
         logger.info("Succesfully deactivated discord for user %s" % request.user)
@@ -443,7 +519,7 @@ def deactivate_discord(request):
 def reset_discord(request):
     logger.debug("reset_discord called by user %s" % request.user)
     authinfo = AuthServicesInfoManager.get_auth_service_info(request.user)
-    result = DiscordManager.delete_user(authinfo.discord_uid)
+    result = DiscordOAuthManager.delete_user(authinfo.discord_uid)
     if result:
         AuthServicesInfoManager.update_user_discord_info("",request.user)
         logger.info("Succesfully deleted discord user for user %s - forwarding to discord activation." % request.user)
@@ -455,47 +531,29 @@ def reset_discord(request):
 @user_passes_test(service_blue_alliance_test)
 def activate_discord(request):
     logger.debug("activate_discord called by user %s" % request.user)
-    success = False
-    if request.method == 'POST':
-        logger.debug("Received POST request with form.")
-        form = DiscordForm(request.POST)
-        logger.debug("Form is valid: %s" % form.is_valid())
-        if form.is_valid():
-            email = form.cleaned_data['email']
-            logger.debug("Form contains email address beginning with %s" % email[0:3])
-            password = form.cleaned_data['password']
-            logger.debug("Form contains password of length %s" % len(password))
-            update_avatar = form.cleaned_data['update_avatar']
-            logger.debug("Form contains update_avatar set to %r" % bool(update_avatar))
-            try:
-                user_id = DiscordManager.add_user(email, password, request.user)
-                logger.debug("Received discord uid %s" % user_id)
-                if user_id != "":
-                    AuthServicesInfoManager.update_user_discord_info(user_id, request.user)
-                    logger.debug("Updated discord id %s for user %s" % (user_id, request.user))
-                    update_discord_groups.delay(request.user.pk)
-                    logger.debug("Updated discord groups for user %s." % request.user)
-                    success = True
-                    logger.info("Succesfully activated discord for user %s" % request.user)
-                    if (update_avatar):
-                        authinfo = AuthServicesInfoManager.get_auth_service_info(request.user)
-                        char_id  = authinfo.main_char_id
-                        avatar_updated = DiscordManager.update_user_avatar(email, password, request.user, char_id)
-                        if (avatar_updated):
-                            logger.debug("Updated user %s discord avatar." % request.user)
-                        else:
-                            logger.debug("Could not set user %s discord avatar." %request.user)
-                    return HttpResponseRedirect("/services/")
-            except:
-                logger.exception("An unhandled exception has occured.")
-                pass
-    else:
-        logger.debug("Request is not type POST - providing empty form.")
-        form = DiscordForm()
+    return HttpResponseRedirect(DiscordOAuthManager.generate_oauth_redirect_url())
 
-    logger.debug("Rendering form for user %s with success %s" % (request.user, success))
-    context = {'form': form, 'success': success}
-    return render_to_response('registered/discord.html', context, context_instance=RequestContext(request))
+@login_required
+@user_passes_test(service_blue_alliance_test)
+def discord_callback(request):
+    logger.debug("Received Discord callback for activation of user %s" % request.user)
+    code = request.GET.get('code', None)
+    if not code:
+        logger.warn("Did not receive OAuth code from callback of user %s" % request.user)
+        return HttpResponseRedirect("/services/")
+    user_id = DiscordOAuthManager.add_user(code)
+    if user_id:
+        AuthServicesInfoManager.update_user_discord_info(user_id, request.user)
+        update_discord_groups.delay(request.user.pk)
+        logger.info("Succesfully activated Discord for user %s" % request.user)
+    else:
+        logger.error("Failed to activate Discord for user %s" % request.user)
+    return HttpResponseRedirect("/services/")
+
+@login_required
+@user_passes_test(superuser_test)
+def discord_add_bot(request):
+    return HttpResponseRedirect(DiscordOAuthManager.generate_bot_add_url())
 
 @login_required
 @user_passes_test(service_blue_alliance_test)
