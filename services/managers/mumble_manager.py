@@ -16,7 +16,8 @@ class MumbleManager:
 
     @staticmethod
     def __santatize_username(username):
-        sanatized = username.replace(" ", "_")
+#        sanatized = username.replace(" ", "_")
+        sanatized = username
         return sanatized
 
     @staticmethod
@@ -25,11 +26,11 @@ class MumbleManager:
 
     @staticmethod
     def __generate_username(username, corp_ticker):
-        return "[" + corp_ticker + "]" + username
+        return "[" + corp_ticker + "] " + username
 
     @staticmethod
     def __generate_username_blue(username, corp_ticker):
-        return "[BLUE][" + corp_ticker + "]" + username
+        return "[BLUE][" + corp_ticker + "] " + username
 
     @staticmethod
     def _gen_pwhash(password):
