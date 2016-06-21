@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import Group
 
 from eveonline.models import EveCharacter
+from eveonline.models import EveAllianceInfo
 from authentication.models import AuthServicesInfo
 from managers.openfire_manager import OpenfireManager
 from managers.phpbb3_manager import Phpbb3Manager
@@ -358,9 +359,16 @@ def activate_mumble(request):
     logger.debug("activate_mumble called by user %s" % request.user)
     authinfo = AuthServicesInfoManager.get_auth_service_info(request.user)
     character = EveManager.get_character_by_id(authinfo.main_char_id)
+    # Blue members should have alliance ticker (if in alliance)
+    ticker = character.corporation_ticker
+    if EveAllianceInfo.objects.filter(alliance_id=character.alliance_id).exists():
+        alliance = EveAllianceInfo.objects.filter(alliance_id=character.alliance_id)[0]
+        alliance_ticker = alliance.alliance_ticker
+        ticker = alliance_ticker
+
     if check_if_user_has_permission(request.user, "blue_member"):
         logger.debug("Adding mumble user for blue user %s with main character %s" % (request.user, character))
-        result = MumbleManager.create_blue_user(character.corporation_ticker, character.character_name)
+        result = MumbleManager.create_blue_user(ticker, character.character_name)
     else:
         logger.debug("Adding mumble user for user %s with main character %s" % (request.user, character))
         result = MumbleManager.create_user(character.corporation_ticker, character.character_name)

@@ -44,14 +44,18 @@ def hr_application_management_view(request):
             main_char = EveCharacter.objects.get(character_id=auth_info.main_char_id)
         except:
             pass
-    if request.user.is_superuser:
+    if request.user.has_perm('auth.member') and main_char: # Allows members to view all applications
         corp_applications = Application.objects.filter(approved=None)
-        finished_corp_applications = Application.objects.exclude(approved=None)
-    elif request.user.has_perm('auth.human_resources') and main_char:
-        if ApplicationForm.objects.filter(corp__corporation_id=main_char.corporation_id).exists():
-            app_form = ApplicationForm.objects.get(corp__corporation_id=main_char.corporation_id)
-            corp_applications = Application.objects.filter(form=app_form).filter(approved=None)
-            finished_corp_applications = Application.objects.filter(form=app_form).filter(approved__in=[True, False])
+        finished_corp_applications = Application.objects.filter(approved__in=[True, False])
+
+    # if request.user.is_superuser:
+    #     corp_applications = Application.objects.filter(approved=None)
+    #     finished_corp_applications = Application.objects.exclude(approved=None)
+    # elif request.user.has_perm('auth.human_resources') and main_char:
+    #     if ApplicationForm.objects.filter(corp__corporation_id=main_char.corporation_id).exists():
+    #         app_form = ApplicationForm.objects.get(corp__corporation_id=main_char.corporation_id)
+    #         corp_applications = Application.objects.filter(form=app_form).filter(approved=None)
+    #         finished_corp_applications = Application.objects.filter(form=app_form).filter(approved__in=[True, False])
     logger.debug("Retrieved %s personal, %s corp applications for %s" % (len(request.user.applications.all()), len(corp_applications), request.user))
     context = {
         'personal_apps': request.user.applications.all(),
@@ -97,7 +101,8 @@ def hr_application_personal_view(request, app_id):
         context = {
             'app': app,
             'responses': ApplicationResponse.objects.filter(application=app),
-            'buttons': False,
+#            'buttons': False,
+            'buttons': True, # Allow personal view to see buttons (comments, etc')
             'comments': ApplicationComment.objects.filter(application=app),
             'comment_form': HRApplicationCommentForm(),
             'apis': [],
@@ -123,7 +128,8 @@ def hr_application_personal_removal(request, app_id):
     return redirect('auth_hrapplications_view')
 
 @login_required
-@permission_required('auth.human_resources')
+# @permission_required('auth.human_resources') # Removed to allow all alliance members to view applicants
+@permission_required('auth.member')
 def hr_application_view(request, app_id):
     logger.debug("hr_application_view called by user %s for app id %s" % (request.user, app_id))
     app = get_object_or_404(Application, pk=app_id)
@@ -150,7 +156,8 @@ def hr_application_view(request, app_id):
         'app': app,
         'responses': ApplicationResponse.objects.filter(application=app),
         'buttons': True,
-        'apis': apis,
+#        'apis': apis,
+        'apis': [], # Remove APIs form applicant view. APIs are accessed via alliance-apis
         'comments': ApplicationComment.objects.filter(application=app),
         'comment_form': form,
     }
@@ -199,7 +206,8 @@ def hr_application_reject(request, app_id):
     return redirect('auth_hrapplications_view')
 
 @login_required
-@permission_required('auth.human_resources')
+# @permission_required('auth.human_resources') # Removed to allow all corp members search for applicants
+@permission_required('auth.member')
 def hr_application_search(request):
     logger.debug("hr_application_search called by user %s" % request.user)
     if request.method == 'POST':
@@ -216,7 +224,8 @@ def hr_application_search(request):
                 auth_info = AuthServicesInfo.objects.get(user=request.user)
                 try:
                     character = EveCharacter.objects.get(character_id=auth_info.main_char_id)
-                    app_list = Application.objects.filter(form__corp__corporation_id=character.corporation_id)
+#                    app_list = Application.objects.filter(form__corp__corporation_id=character.corporation_id)
+                    app_list = Application.objects.all() # Get applications for all corps
                 except:
                     logger.warn("User %s missing main character model: unable to filter applications to search" % request.user)
             for application in app_list:
