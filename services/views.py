@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import Group
+from django.conf import settings
 
 from eveonline.models import EveCharacter
 from eveonline.models import EveAllianceInfo
@@ -557,6 +558,8 @@ def discord_callback(request):
     user_id = DiscordOAuthManager.add_user(code)
     if user_id:
         AuthServicesInfoManager.update_user_discord_info(user_id, request.user)
+        if (settings.DISCORD_SYNC_NAMES):
+            update_discord_nickname.delay(request.user.pk)
         update_discord_groups.delay(request.user.pk)
         logger.info("Succesfully activated Discord for user %s" % request.user)
     else:

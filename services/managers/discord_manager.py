@@ -504,6 +504,32 @@ class DiscordOAuthManager:
             return None
 
     @staticmethod
+    def update_nickname(user_id, nickname):
+        try:
+            custom_headers = {'content-type':'application/json', 'authorization': 'Bot ' + settings.DISCORD_BOT_TOKEN}
+            data = { 'nick': nickname, }
+            path = DISCORD_URL + "/guilds/" + str(settings.DISCORD_GUILD_ID) + "/members/" + str(user_id)
+            r = requests.patch(path, headers=custom_headers, json=data)
+            logger.debug("Got status code %s after setting nickname for Discord user ID %s (%s)" % (r.status_code, user_id, nickname))
+            if r.status_code == 404:
+                logger.warn("Discord user ID %s could not be found in server." % user_id)
+                return True
+            r.raise_for_status()
+            return True
+        except:
+            logger.exception("Failed to set nickname for Discord user ID %s (%s)" % (user_id, nickname))
+            return False
+
+    @staticmethod
+    def __get_groups():
+        custom_headers = {'accept': 'application/json', 'authorization': 'Bot ' + settings.DISCORD_BOT_TOKEN}
+        path = DISCORD_URL + "/guilds/" + str(settings.DISCORD_GUILD_ID) + "/roles"
+        r = requests.get(path, headers=custom_headers)
+        logger.debug("Got status code %s after retrieving Discord roles" % r.status_code)
+        r.raise_for_status()
+        return r.json()
+
+    @staticmethod
     def delete_user(user_id):
         try:
             custom_headers = {'accept': 'application/json', 'authorization': 'Bot ' + settings.DISCORD_BOT_TOKEN}
