@@ -452,7 +452,7 @@ AUTH_URL = "https://discordapp.com/api/oauth2/authorize"
 TOKEN_URL = "https://discordapp.com/api/oauth2/token"
 
 # kick, manage roles
-BOT_PERMISSIONS = 0x00000002 + 0x10000000
+BOT_PERMISSIONS = 0x00000002 + 0x10000000 + 0x08000000
 
 # get user ID, accept invite
 SCOPES = [
