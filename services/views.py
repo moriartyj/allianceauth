@@ -31,6 +31,7 @@ from celerytask.tasks import update_ipboard_groups
 from celerytask.tasks import update_smf_groups
 from celerytask.tasks import update_teamspeak3_groups
 from celerytask.tasks import update_discord_groups
+from celerytask.tasks import update_discord_nickname
 from celerytask.tasks import update_discourse_groups
 from forms import JabberBroadcastForm
 from forms import FleetFormatterForm
