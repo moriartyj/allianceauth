@@ -521,15 +521,6 @@ class DiscordOAuthManager:
             return False
 
     @staticmethod
-    def __get_groups():
-        custom_headers = {'accept': 'application/json', 'authorization': 'Bot ' + settings.DISCORD_BOT_TOKEN}
-        path = DISCORD_URL + "/guilds/" + str(settings.DISCORD_GUILD_ID) + "/roles"
-        r = requests.get(path, headers=custom_headers)
-        logger.debug("Got status code %s after retrieving Discord roles" % r.status_code)
-        r.raise_for_status()
-        return r.json()
-
-    @staticmethod
     def delete_user(user_id):
         try:
             custom_headers = {'accept': 'application/json', 'authorization': 'Bot ' + settings.DISCORD_BOT_TOKEN}
